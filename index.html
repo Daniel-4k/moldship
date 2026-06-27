@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>МОР: Побег с «Вигилии»</title>
+<style>
+  :root{
+    --void:#07090b;
+    --hull:#11161b;
+    --hull-2:#1a2229;
+    --steel:#2c3640;
+    --steel-line:#3d4a56;
+    --bone:#d8d3c4;
+    --signal:#e8c468;
+    --signal-dim:#8a6f37;
+    --spore:#7fb069;
+    --spore-glow:#a8e063;
+    --rot:#5c4a8a;
+    --blood:#b3402f;
+    --danger:#c9492f;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--void); color:var(--bone);
+    font-family:'Courier New', monospace;
+    touch-action:none;
+  }
+  #gameCanvas{position:fixed; inset:0; display:block; outline:none;}
+
+  @font-face{
+    font-family:'Cinzel';
+    src:local('Cinzel');
+  }
+
+  .screen{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    z-index:50; background:radial-gradient(ellipse at 50% 30%, #141a1f 0%, var(--void) 75%);
+  }
+  .hidden{display:none !important;}
+
+  /* ===== MENU ===== */
+  #menuScreen .menu-wrap{
+    width:min(560px, 92vw);
+    text-align:center;
+    padding:28px 24px 34px;
+    position:relative;
+  }
+  .corrosion{
+    position:absolute; inset:-40px; pointer-events:none; opacity:.5; z-index:-1;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(127,176,105,.10), transparent 22%),
+      radial-gradient(circle at 85% 75%, rgba(127,176,105,.08), transparent 28%),
+      radial-gradient(circle at 70% 10%, rgba(92,74,138,.10), transparent 20%);
+    filter:blur(2px);
+  }
+  .title-eyebrow{
+    letter-spacing:.32em; font-size:11px; color:var(--signal-dim);
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  .title-main{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-size:clamp(34px,7vw,54px);
+    letter-spacing:.04em;
+    color:var(--bone);
+    margin:0;
+    text-shadow:0 0 18px rgba(127,176,105,.25), 0 2px 0 #000;
+    font-weight:700;
+  }
+  .title-sub{
+    font-size:13px; color:#8a9199; letter-spacing:.06em; margin-top:8px; margin-bottom:30px;
+  }
+  .title-sub b{color:var(--spore); font-weight:700;}
+
+  .char-select{
+    display:flex; gap:14px; justify-content:center; margin-bottom:26px; flex-wrap:wrap;
+  }
+  .char-card{
+    width:150px; border:1px solid var(--steel-line); background:linear-gradient(180deg,var(--hull-2),var(--hull));
+    padding:14px 10px 16px; cursor:pointer; position:relative; transition:border-color .15s, transform .15s;
+  }
+  .char-card:hover{transform:translateY(-2px);}
+  .char-card.active{border-color:var(--signal); box-shadow:0 0 22px rgba(232,196,104,.18) inset, 0 0 14px rgba(232,196,104,.12);}
+  .char-card svg{width:100%; height:84px; display:block; margin-bottom:8px;}
+  .char-name{font-size:12px; letter-spacing:.08em; color:var(--bone); text-transform:uppercase; font-weight:700;}
+  .char-desc{font-size:10.5px; color:#7e8893; margin-top:4px; line-height:1.4;}
+  .char-card.active .char-name{color:var(--signal);}
+
+  .btn{
+    font-family:Georgia, serif; font-size:15px; letter-spacing:.06em;
+    background:linear-gradient(180deg,#2a3540,#1c252c);
+    color:var(--bone); border:1px solid var(--steel-line);
+    padding:13px 38px; cursor:pointer; text-transform:uppercase;
+    transition:all .15s; position:relative;
+  }
+  .btn:hover{border-color:var(--signal); color:var(--signal); box-shadow:0 0 16px rgba(232,196,104,.15);}
+  .btn:active{transform:scale(.97);}
+  .btn-primary{border-color:var(--signal-dim);}
+  .btn.small{padding:9px 22px; font-size:12px;}
+
+  .lore-box{
+    margin-top:24px; text-align:left; font-size:12px; line-height:1.7; color:#9aa1a8;
+    border-left:2px solid var(--spore); padding:10px 16px; background:rgba(127,176,105,.04);
+  }
+
+  /* ===== HUD ===== */
+  #hud{position:fixed; inset:0; z-index:20; pointer-events:none; font-family:'Courier New',monospace;}
+  .hud-top-left{
+    position:absolute; top:14px; left:16px; display:flex; flex-direction:column; gap:8px; max-width:62vw;
+  }
+  .bar-row{display:flex; align-items:center; gap:8px;}
+  .bar-label{font-size:9px; letter-spacing:.12em; color:#7e8893; width:34px;}
+  .bar-track{width:150px; height:9px; background:rgba(0,0,0,.5); border:1px solid var(--steel-line); position:relative;}
+  .bar-fill{height:100%; transition:width .25s;}
+  .bar-fill.hp{background:linear-gradient(90deg,#7a2418,var(--danger));}
+  .bar-fill.spore{background:linear-gradient(90deg,#4a6b35,var(--spore));}
+
+  .objective-box{
+    position:absolute; top:14px; right:16px; max-width:240px; text-align:right;
+    border-right:2px solid var(--signal); padding-right:12px;
+  }
+  .objective-eyebrow{font-size:9px; letter-spacing:.16em; color:var(--signal-dim); text-transform:uppercase;}
+  .objective-text{font-size:13px; color:var(--bone); margin-top:4px; line-height:1.4;}
+  .level-tag{position:absolute; top:14px; left:50%; transform:translateX(-50%); font-size:10px; letter-spacing:.2em; color:#5a6068; text-transform:uppercase;}
+
+  .ammo-box{
+    position:absolute; bottom:18px; right:18px; text-align:right;
+    font-size:26px; color:var(--bone); font-family:Georgia,serif;
+  }
+  .ammo-box .of{font-size:14px; color:#666;}
+  .ammo-label{font-size:9px; letter-spacing:.14em; color:#7e8893; display:block; margin-top:2px;}
+
+  .crosshair{
+    position:absolute; top:50%; left:50%; width:18px; height:18px; margin:-9px 0 0 -9px;
+  }
+  .crosshair div{position:absolute; background:rgba(216,211,196,.85);}
+  .crosshair .h{width:18px; height:2px; top:8px; left:0;}
+  .crosshair .v{width:2px; height:18px; left:8px; top:0;}
+  .crosshair.hit div{background:var(--danger);}
+
+  .interact-prompt{
+    position:absolute; bottom:34%; left:50%; transform:translateX(-50%);
+    font-size:13px; color:var(--bone); background:rgba(10,13,15,.7); border:1px solid var(--steel-line);
+    padding:7px 14px; letter-spacing:.04em; white-space:nowrap;
+  }
+  .interact-prompt b{color:var(--signal);}
+
+  .toast-wrap{position:absolute; top:60px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center;}
+  .toast{
+    background:rgba(10,13,15,.85); border:1px solid var(--spore); color:var(--spore-glow);
+    font-size:12px; padding:8px 16px; letter-spacing:.04em; animation:toastIn .25s ease-out, toastOut .4s ease-in 2.6s forwards;
+  }
+  @keyframes toastIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes toastOut{to{opacity:0;}}
+
+  .vignette-danger{
+    position:absolute; inset:0; opacity:0; pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 45%, rgba(140,30,20,.55) 100%);
+    transition:opacity .3s;
+  }
+  .flash-hit{
+    position:absolute; inset:0; background:rgba(140,20,15,.35); opacity:0; pointer-events:none;
+  }
+
+  /* ===== MOBILE CONTROLS ===== */
+  #mobileControls{position:fixed; inset:0; z-index:25; pointer-events:none; display:none;}
+  #mobileControls.active{display:block;}
+  .joy-zone{position:absolute; left:0; bottom:0; width:46vw; height:55vh; pointer-events:auto;}
+  .look-zone{position:absolute; right:0; bottom:0; width:54vw; height:75vh; pointer-events:auto;}
+  .joy-base{
+    position:absolute; width:108px; height:108px; border-radius:50%;
+    background:rgba(20,26,30,.45); border:1.5px solid rgba(216,211,196,.3);
+    display:none; pointer-events:none;
+  }
+  .joy-nub{
+    position:absolute; width:46px; height:46px; border-radius:50%; top:50%; left:50%;
+    margin:-23px 0 0 -23px; background:rgba(216,211,196,.55); border:1px solid rgba(255,255,255,.4);
+    pointer-events:none;
+  }
+  .action-btns{position:absolute; right:18px; bottom:18px; display:flex; flex-direction:column; align-items:flex-end; gap:12px; pointer-events:auto;}
+  .abtn{
+    width:64px; height:64px; border-radius:50%; border:1.5px solid rgba(216,211,196,.45);
+    background:rgba(20,26,30,.55); color:var(--bone); font-size:11px; letter-spacing:.04em;
+    display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1;
+    font-family:'Courier New',monospace; text-transform:uppercase;
+  }
+  .abtn.fire{width:78px; height:78px; background:rgba(140,40,30,.4); border-color:rgba(201,73,47,.7); font-size:12px;}
+  .abtn.active{background:rgba(232,196,104,.35); border-color:var(--signal);}
+  .abtn-row{display:flex; gap:12px;}
+  .run-toggle.on{background:rgba(127,176,105,.35); border-color:var(--spore);}
+
+  /* ===== overlays ===== */
+  #deathScreen, #winScreen{
+    position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
+    background:rgba(5,6,7,.92); text-align:center; flex-direction:column;
+  }
+  #deathScreen h1{font-family:Georgia,serif; color:var(--blood); font-size:42px; letter-spacing:.08em; margin-bottom:6px;}
+  #winScreen h1{font-family:Georgia,serif; color:var(--signal); font-size:38px; letter-spacing:.06em; margin-bottom:6px;}
+  .sub-msg{color:#8a9199; font-size:13px; margin-bottom:26px; max-width:420px; line-height:1.6;}
+
+  #loadingScreen{position:fixed; inset:0; z-index:70; background:var(--void); display:flex; align-items:center; justify-content:center; flex-direction:column;}
+  .load-bar{width:240px; height:3px; background:#1c232a; margin-top:18px; position:relative; overflow:hidden;}
+  .load-fill{position:absolute; left:0; top:0; height:100%; width:0%; background:var(--spore); transition:width .2s;}
+  .load-txt{font-size:11px; color:#7e8893; letter-spacing:.1em; margin-top:10px;}
+
+  #orientNotice{
+    position:fixed; inset:0; z-index:80; background:var(--void); color:var(--bone);
+    display:none; align-items:center; justify-content:center; text-align:center; font-size:14px; padding:30px;
+  }
+  @media (max-width:900px) and (orientation:portrait){
+    #orientNotice.show{display:flex;}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div class="title-eyebrow">КОРАБЛЬ-НОСИТЕЛЬ «ВИГИЛИЯ»</div>
+  <div class="title-main" style="font-size:28px;">загрузка отсеков</div>
+  <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
+  <div class="load-txt" id="loadTxt">инициализация...</div>
+</div>
+
+<!-- ORIENTATION -->
+<div id="orientNotice">Переверните устройство горизонтально</div>
+
+<!-- MENU -->
+<div class="screen" id="menuScreen">
+  <div class="menu-wrap">
+    <div class="corrosion"></div>
+    <div class="title-eyebrow">несущий корабль «вигилия» · аварийный протокол</div>
+    <h1 class="title-main">МОР</h1>
+    <div class="title-sub">плесень захватила палубы. <b>выберите носителя</b> и доберитесь до спасательной капсулы.</div>
+
+    <div class="char-select" id="charSelect">
+      <div class="char-card active" data-char="sentinel">
+        <svg viewBox="0 0 100 84"><use href="#icon-knight-a"></use></svg>
+        <div class="char-name">Страж</div>
+        <div class="char-desc">тяжёлая броня · больше здоровья · медленнее бег</div>
+      </div>
+      <div class="char-card" data-char="warden">
+        <svg viewBox="0 0 100 84"><use href="#icon-knight-b"></use></svg>
+        <div class="char-name">Дозорный</div>
+        <div class="char-desc">лёгкая броня · быстрее · больше патронов</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="startBtn">Начать высадку</button>
+
+    <div class="lore-box" id="loreBox">
+      Бортовой журнал, запись последняя: «...образец из сектора добычи дал реакцию на палубе C.
+      Карантин не сдержал рост. Орбитальный маяк повреждён. Всем выжившим — к спасательным капсулам отсека 6.»
+    </div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="level-tag" id="levelTag">ОТСЕК 1 / 6 — АНГАР</div>
+  <div class="hud-top-left">
+    <div class="bar-row">
+      <div class="bar-label">ЖИЗНЬ</div>
+      <div class="bar-track"><div class="bar-fill hp" id="hpFill" style="width:100%"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">ЗАРАЖ.</div>
+      <div class="bar-track"><div class="bar-fill spore" id="sporeFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="objective-box">
+    <div class="objective-eyebrow">Задание</div>
+    <div class="objective-text" id="objectiveText">Найдите ключ-карту ангара</div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <div class="crosshair" id="crosshair"><div class="h"></div><div class="v"></div></div>
+
+  <div class="interact-prompt hidden" id="interactPrompt">Нажмите <b>E</b> чтобы взаимодействовать</div>
+
+  <div class="ammo-box">
+    <span id="ammoCount">12</span><span class="of">/24</span>
+    <span class="ammo-label">ЗАРЯДЫ ОСВЯЩЕНИЯ</span>
+  </div>
+
+  <div class="vignette-danger" id="vignette"></div>
+  <div class="flash-hit" id="flashHit"></div>
+</div>
+
+<!-- MOBILE CONTROLS -->
+<div id="mobileControls">
+  <div class="joy-zone" id="joyZone">
+    <div class="joy-base" id="joyBase"><div class="joy-nub" id="joyNub"></div></div>
+  </div>
+  <div class="look-zone" id="lookZone"></div>
+  <div class="action-btns">
+    <div class="abtn fire" id="btnFire">ОГОНЬ</div>
+    <div class="abtn-row">
+      <div class="abtn" id="btnInteract">ВЗАИМ.</div>
+      <div class="abtn run-toggle" id="btnRun">БЕГ</div>
+    </div>
+  </div>
+</div>
+
+<!-- DEATH -->
+<div id="deathScreen" class="hidden">
+  <h1>НОСИТЕЛЬ ПАЛ</h1>
+  <div class="sub-msg" id="deathMsg">Плесень поглотила тело. Сознание угасает в споровом облаке...</div>
+  <button class="btn btn-primary" id="retryBtn">Возродиться в ангаре</button>
+</div>
+
+<!-- WIN -->
+<div id="winScreen" class="hidden">
+  <h1>ВЫ СПАСЛИСЬ</h1>
+  <div class="sub-msg" id="winMsg">Капсула отстыковалась от «Вигилии». Корабль остаётся плесени.</div>
+  <button class="btn btn-primary" id="restartBtn">Сыграть снова</button>
+</div>
+
+<!-- SVG defs for character icons -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <g id="icon-knight-a">
+      <rect x="38" y="6" width="24" height="20" rx="4" fill="#8a93a0"/>
+      <rect x="44" y="12" width="5" height="4" fill="#2c3640"/>
+      <rect x="51" y="12" width="5" height="4" fill="#2c3640"/>
+      <rect x="28" y="28" width="44" height="34" rx="3" fill="#6b7480"/>
+      <rect x="28" y="28" width="44" height="6" fill="#e8c468" opacity="0.6"/>
+      <rect x="16" y="32" width="12" height="26" rx="2" fill="#5a6470"/>
+      <rect x="72" y="32" width="12" height="26" rx="2" fill="#5a6470"/>
+      <rect x="34" y="62" width="14" height="18" fill="#4a525e"/>
+      <rect x="52" y="62" width="14" height="18" fill="#4a525e"/>
+    </g>
+    <g id="icon-knight-b">
+      <rect x="40" y="6" width="20" height="18" rx="8" fill="#9aa3ad"/>
+      <rect x="46" y="12" width="4" height="4" fill="#1a2229"/>
+      <rect x="52" y="12" width="4" height="4" fill="#1a2229"/>
+      <rect x="32" y="26" width="36" height="30" rx="6" fill="#7c8590"/>
+      <rect x="32" y="26" width="36" height="5" fill="#a8e063" opacity="0.5"/>
+      <rect x="22" y="29" width="9" height="22" rx="3" fill="#646d78"/>
+      <rect x="69" y="29" width="9" height="22" rx="3" fill="#646d78"/>
+      <rect x="36" y="56" width="12" height="20" fill="#565e68"/>
+      <rect x="52" y="56" width="12" height="20" fill="#565e68"/>
+    </g>
+  </defs>
+</svg>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="game.js"></script>
+<script src="monsters.js"></script>
+<script src="levels.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
